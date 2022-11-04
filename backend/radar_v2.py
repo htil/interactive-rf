@@ -15,6 +15,7 @@ import glob
 import json
 from radar_utils.RDC_extract_2243 import RDC_extract_2243
 from radar_utils.helpers import stft
+from radar_utils.prediction import prediction
 from radar_utils.RDC_to_microDoppler_2243 import RDC_microDoppler
 
 
@@ -139,7 +140,7 @@ class RadarManager:
         return sx2, params
 
     def plot_spectrogram(self, sx2, params, filename):
-        savename = self.storage_dir + filename + '_Raw_0.png'
+        self.savename = self.storage_dir + filename + '_Raw_0.png'
         maxval = np.max(sx2)
         norm = colors.Normalize(vmin=-45, vmax=None, clip=True)
         fig = plt.figure(frameon=True)
@@ -149,12 +150,12 @@ class RadarManager:
         plt.xlabel('Time (sec)')
         plt.ylabel('Frequency (Hz)')
         plt.title('Radar Micro-Doppler Spectrogram')
-        fig.savefig(savename, transparent=False, dpi=200)
+        fig.savefig(self.savename, transparent=False, dpi=200)
         plt.axis('off')
         plt.tick_params(axis='both', left='off', top='off', right='off', bottom='off', labelleft='off', labeltop='off',
                         labelright='off', labelbottom='off')
         im.get_figure().gca().set_title("")
-        plt.savefig(savename.replace('.', '_im.'), bbox_inches='tight', transparent=True, pad_inches=0)
+        plt.savefig(self.savename.replace('.', '_im.'), bbox_inches='tight', transparent=True, pad_inches=0)
 
     def generate_spectrogram(self, filename):
         sx2, params = self.generate_sx2(filename)
@@ -163,6 +164,16 @@ class RadarManager:
     def record_and_plot(self, filename, duration=3):
         self.record_radar(filename, duration=duration)
         self.generate_spectrogram(filename)
+
+    def predict_sample(self, model_path, size):
+        pred = prediction(model_path, size, self.savename.replace('.', '_im.'))
+        maybe = round(pred[0][0] * 100, 2)
+        you = round(pred[0][1] * 100, 2)
+        for i, p in enumerate(pred[0]):
+            confidence = round(p * 100, 2)
+            print('Class #' + str(i+1) + ' confidence: ' + str(confidence) + '%')
+
+
 
 
 
