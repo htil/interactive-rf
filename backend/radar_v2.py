@@ -16,6 +16,7 @@ import json
 from radar_utils.RDC_extract_2243 import RDC_extract_2243
 from radar_utils.helpers import stft
 from radar_utils.prediction import prediction
+from radar_utils.ioserver import IOServer
 from radar_utils.RDC_to_microDoppler_2243 import RDC_microDoppler
 
 
@@ -25,11 +26,13 @@ class RadarConfig:
         if any([var is None for var in [stop_mode, duration, prefix, directory]]):
             print('All params not supplied: reading radar config from file')
             self.read_config()
+            self.savename = self.directory + self.prefix + '_Raw_0.png'
             return
         self.stop_mode = stop_mode
         self.duration = int(duration)
         self.prefix = prefix
         self.directory = directory
+        self.savename = directory + prefix + '_Raw_0.png'
         self.save_config()
 
     def set_duration(self, duration):
@@ -140,7 +143,6 @@ class RadarManager:
         return sx2, params
 
     def plot_spectrogram(self, sx2, params, filename):
-        self.savename = self.storage_dir + filename + '_Raw_0.png'
         maxval = np.max(sx2)
         norm = colors.Normalize(vmin=-45, vmax=None, clip=True)
         fig = plt.figure(frameon=True)
@@ -150,12 +152,12 @@ class RadarManager:
         plt.xlabel('Time (sec)')
         plt.ylabel('Frequency (Hz)')
         plt.title('Radar Micro-Doppler Spectrogram')
-        fig.savefig(self.savename, transparent=False, dpi=200)
+        fig.savefig(self.config.savename, transparent=False, dpi=200)
         plt.axis('off')
         plt.tick_params(axis='both', left='off', top='off', right='off', bottom='off', labelleft='off', labeltop='off',
                         labelright='off', labelbottom='off')
         im.get_figure().gca().set_title("")
-        plt.savefig(self.savename.replace('.', '_im.'), bbox_inches='tight', transparent=True, pad_inches=0)
+        plt.savefig(self.config.savename.replace('.', '_im.'), bbox_inches='tight', transparent=True, pad_inches=0)
 
     def generate_spectrogram(self, filename):
         sx2, params = self.generate_sx2(filename)
@@ -166,12 +168,17 @@ class RadarManager:
         self.generate_spectrogram(filename)
 
     def predict_sample(self, model_path, size):
-        pred = prediction(model_path, size, self.savename.replace('.', '_im.'))
-        maybe = round(pred[0][0] * 100, 2)
-        you = round(pred[0][1] * 100, 2)
+        pred = prediction(model_path, size, self.config.savename.replace('.', '_im.'))
+        # maybe = round(pred[0][0] * 100, 2)
+        # you = round(pred[0][1] * 100, 2)
         for i, p in enumerate(pred[0]):
             confidence = round(p * 100, 2)
             print('Class #' + str(i+1) + ' confidence: ' + str(confidence) + '%')
+        return pred[0]
+
+
+
+
 
 
 
