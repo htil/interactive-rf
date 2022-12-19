@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Real-time Demo</title>
+    <script src="https://cdn.plot.ly/plotly-2.3.1.min.js"></script>
+    <script src="https://cdn.socket.io/4.1.2/socket.io.min.js"></script>
+  </head>
+  <body>
+    <center>
+      <div id="chart"></div>
+    </center>
+    <script src="ioclient.js"></script>
+    <script type="text/javascript">
+      const pred = "";
+      console.log("STARTING IO CLIENT");
+      const client = new IOClient("http://localhost:5000");
+      client.send("initialize");
+      client.on("connect", () => {
+        console.log("Connected to Server");
+        client.send("stream", "hi");
+      });
+
+      Plotly.newPlot("chart", [
+        {
+          x: [],
+          y: [],
+          mode: "lines",
+          line: {
+            shape: "spline",
+            smoothing: 1,
+            color: "red",
+          },
+        },
+        {
+          x: [],
+          y: [],
+          mode: "lines",
+          line: {
+            shape: "spline",
+            smoothing: 1,
+            color: "blue",
+          },
+        },
+        {
+          x: [],
+          y: [],
+          mode: "lines",
+          line: {
+            shape: "spline",
+            smoothing: 1,
+            color: "green",
+          },
+        },
+        {
+          x: [],
+          y: [],
+          mode: "lines",
+          line: {
+            shape: "spline",
+            smoothing: 1,
+            color: "yellow",
+          },
+        },
+        {
+          x: [],
+          y: [],
+          mode: "lines",
+          line: {
+            shape: "spline",
+            smoothing: 1,
+            color: "purple",
+          },
+        },
+      ]);
+
+      let length = 0;
+
+      client.on("data", (...args) => {
+        console.log(args[0]);
+      });
+
+      /*
+      client.on("data", (...args) => {
+        console.log(args);
+        const time = new Date();
+        let x_traces = [];
+        let y_traces = [];
+        for (let i = 0; i < args[0].data.length; i++) {
+          x_traces.push([time]);
+          y_traces.push([args[0].data[i]]);
+        }
+        const next = {
+          x: x_traces,
+          y: y_traces,
+        };
+        const lower = time.setSeconds(time.getSeconds() - 15);
+        const upper = time.setSeconds(time.getSeconds() + 15);
+        const view = {
+          xaxis: {
+            type: "date",
+            range: [lower, upper],
+          },
+        };
+        Plotly.relayout("chart", view);
+        Plotly.extendTraces("chart", next, [0, 1, 2, 3, 4]);
+      });
+
+      */
+
+      client.on("prediction", (args) => {
+        console.log("PRED: ", args);
+      });
+
+      /*setInterval(() => {
+                const time = new Date()
+                const next = {
+                    x: [[new Date()]],
+                    y: [[Math.random()*50]]
+                }
+                const lower = time.setSeconds(time.getSeconds() - 15)
+                const upper = time.setSeconds(time.getSeconds() + 15)
+                const view = {
+                    xaxis: {
+                        type: 'date',
+                        range: [lower, upper]
+                    }
+                }
+                Plotly.relayout('chart', view)
+                Plotly.extendTraces('chart', next, [0])
+            }, 10)*/
+    </script>
+  </body>
+</html>
