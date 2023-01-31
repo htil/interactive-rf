@@ -15,7 +15,7 @@ import glob
 import json
 from radar_utils.RDC_extract_2243 import RDC_extract_2243
 from radar_utils.helpers import stft
-from radar_utils.prediction import prediction
+from radar_utils.prediction import prediction, predict_140
 from radar_utils.ioserver import IOServer
 from radar_utils.RDC_to_microDoppler_2243 import RDC_microDoppler
 
@@ -78,22 +78,32 @@ class RadarManager:
         os.environ["LD_LIBRARY_PATH"] = self.cwd
 
     def radar_init(self):
+        # reset and kill existing recording process, if any
+        # pid = subprocess.check_output(['pgrep gnome-terminal'], shell=True)
+        os.system("gnome-terminal 'ls'")  # opens a new terminal
+        cmd = self.execute('kill')
+        cmd.wait()
+        print('kill error return code: ', cmd.returncode)
+        cmd = self.execute('stop_record')
+        cmd.wait()
+        print('Reset successful!')
+
         # radar init command with sudo privileges
         pwd = subprocess.Popen(['echo', self.sudo_password], cwd=self.radar_path, stdout=subprocess.PIPE)
         pwd.wait()
         cmd = subprocess.Popen(['sudo', '-S', './setup_radar'], cwd=self.radar_path, stdin=pwd.stdout,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # setup radar
         cmd.wait()
-        # print('setup_radar error return code: ', cmd.stderr.read())
-        # print('setup_radar error return code: ', cmd.returncode)
+        print('setup_radar error return code: ', cmd.stderr.read())
+        print('setup_radar error return code: ', cmd.returncode)
 
         cmd = self.execute('fpga')  # set fpga
         cmd.wait()
-        # print('fpga error return code: ', cmd.returncode)
+        print('fpga error return code: ', cmd.returncode)
 
         cmd = self.execute('record')  # set record-ready
         cmd.wait()
-        # print('record error return code: ', cmd.returncode)
+        print('record error return code: ', cmd.returncode)
 
         if cmd.returncode == 0:
             print('Radar is ready to go!')
@@ -121,11 +131,11 @@ class RadarManager:
         # Just follows outline from main_game_record.py
         cmd = self.execute('start_record')
         cmd.wait()
-        # print('start_record error return code: ', cmd.returncode)
+        print('start_record error return code: ', cmd.returncode)
         time.sleep(duration + 0.1)
         cmd = self.execute('kill')
         cmd.wait()
-        # print('kill error return code: ', cmd.returncode)
+        print('kill error return code: ', cmd.returncode)
         cmd = self.execute('stop_record')
         # cmd.wait()
         # print('stop_record error return code: ', cmd.returncode)
@@ -169,6 +179,7 @@ class RadarManager:
 
     def predict_sample(self, model_path, size):
         pred = prediction(model_path, size, self.config.savename.replace('.', '_im.'))
+        # pred = predict_140(self.config.savename.replace('.', '_im.'))
         # maybe = round(pred[0][0] * 100, 2)
         # you = round(pred[0][1] * 100, 2)
         for i, p in enumerate(pred[0]):
