@@ -1,9 +1,12 @@
 import time
 import tensorflow as tf
 import os
+import cv2
 from tensorflow import keras
 from keras.models import load_model
 from keras.layers import *
+from keras.models import model_from_json
+
 from livelossplot import PlotLossesKerasTF
 from PIL import Image, ImageOps
 import numpy as np
@@ -93,11 +96,11 @@ def CNN_train(data, is_split, num_layers, lr, verbose, num_epochs, model_name):
 
 
 def prediction(model_path, size, filename):
-    gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-    for device in gpu_devices:
-        tf.config.experimental.set_memory_growth(device, True)
+    # gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+    # for device in gpu_devices:
+    #     tf.config.experimental.set_memory_growth(device, True)
 
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+    # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
     # 0 = all messages are logged (default behavior)
     # 1 = INFO messages are not printed
     # 2 = INFO and WARNING messages are not printed
@@ -133,6 +136,15 @@ def prediction(model_path, size, filename):
     now = time.time()
     predicted = model.predict(data)
     print('only prediction part', time.time() - now)
+
+    # pred_time = []
+    # for i in range(100):
+    #     now = time.time()
+    #     predicted = model.predict(data)
+    #     pred_time.append(time.time() - now)
+    #     print('only prediction part', pred_time[-1])
+    # print('mean prediction part', np.mean(pred_time))
+
     # print(prediction)
     return predicted
 
@@ -168,3 +180,28 @@ def prediction_new(model_path, size):
     # run the inference
     predicted = model.predict(data)
     return predicted
+
+
+def load_140_sign():
+    MODEL_FILE = "radar_utils/models/140words_model.json"  # save path
+    WEIGHT_FILE = "radar_utils/models/140words_weight.h5"  # save path
+
+    json_file = open(MODEL_FILE, 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    loaded_model.load_weights(WEIGHT_FILE)
+    return loaded_model
+
+
+def predict_140(filename):
+    model = load_140_sign()
+    image = cv2.imread(filename)
+    image = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
+    data = np.expand_dims(np.asarray(image)/255., 0)
+    predicted = model.predict(data)
+    return predicted
+
+
+
+
