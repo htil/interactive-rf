@@ -3,7 +3,138 @@ import os
 import PIL.Image
 import io
 import base64
+import matplotlib.pyplot as plt
 
+
+def envelope_finder(spect_file, plot=False):
+    """
+    :param spect_file: spectrogram file
+    :param plot: Plot envelopes on image
+    :return: upper, cental, lower envelopes and the max velocity
+    """
+    prf = 3200
+    fc = 77e9
+    c = 3e8
+    lamda = c/fc
+
+    im = PIL.Image.open(spect_file)
+    img = np.sum(np.asarray(im)/255., -1)
+    print(np.max(img))
+    print(np.min(img))
+
+    # print(img.flags)
+    # img.setflags(write=1)
+    img2 = img.copy()
+    # print(img.shape)
+    img2[img2 < 1.5] = 0
+    img = img2
+    total_pow = np.sum(img, axis=0)
+    up_lim = total_pow * 0.97
+    cent_lim = total_pow * 0.5
+    low_lim = total_pow * 0.03
+
+    up_env = np.zeros((img.shape[1],))
+    cent_env = np.zeros((img.shape[1],))
+    low_env = np.zeros((img.shape[1],))
+    temp_sum = 0
+
+    # upper envelope
+    for t in range(img.shape[1]):
+        for r in reversed(range(img.shape[0])):
+            temp_sum += img[r, t]
+
+            if temp_sum > up_lim[t]:
+                temp_sum = 0
+                break
+        up_env[t] = r
+
+    # central envelope
+    for t in range(img.shape[1]):
+        for r in reversed(range(img.shape[0])):
+            temp_sum += img[r, t]
+
+            if temp_sum > cent_lim[t]:
+                temp_sum = 0
+                break
+        cent_env[t] = r
+
+    # lower envelope
+    for t in range(img.shape[1]):
+        for r in reversed(range(img.shape[0])):
+            temp_sum += img[r, t]
+
+            if temp_sum > low_lim[t]:
+                temp_sum = 0
+                break
+        low_env[t] = r
+
+    if plot:
+        plt.imshow(im)
+        plt.plot(up_env, 'g', linewidth=2, label='Upper')
+        plt.plot(cent_env, 'r', linewidth=2, label='Central')
+        plt.plot(low_env, 'w', linewidth=2, label='Lower')
+        plt.legend()
+        plt.title('Envelope Detection')
+        plt.show()
+
+    max_peak_ratio = (img.shape[0] - np.min(up_env)) / img.shape[0]
+    doppler_frequency = prf * max_peak_ratio
+    max_velocity = round(doppler_frequency * lamda / 2, 2)
+
+    return up_env, cent_env, low_env, max_velocity
+
+
+def sta_lta2(vec, nlta, nsta, init_th, stop_th, stepsz, duration, plot=False):
+    """
+    :param vec: Euclidean distance between upper and lower envelopes
+    :param nlta: length of the long-time (lagging) window (in sec)
+    :param nsta: length of the short-time (leading) window (in sec)
+    :param init_th: motion detection starting threshold
+    :param stop_th: motion detection stopping threshold
+    :param stepsz: window shift size
+    :param duration: total duration (in sec)
+    :param plot: plot vec overlayed with the detection mask
+    :return mask: detection mask
+    """
+    # vec2 = np.zeros(vec.shape)
+    mask = np.zeros(vec.shape)
+    state = 0  # '0' nothing, '1' signing
+
+    for i in range(0, len(vec), stepsz):
+
+        if i + nlta + nsta + 1 > len(vec):
+            if state == 1:
+                stoppt = len(vec) - 2
+                # vec2[startpt:stoppt] = vec[startpt:stoppt]
+                mask[startpt:stoppt] = 1
+            break
+
+        longwin = vec[i:i + nlta]
+        shortwin = vec[i + nlta:i + nlta + nsta]
+
+        if i < nlta and np.mean(longwin) > 150:
+            # vec2[0:i + nsta] = vec[0:i + nsta]
+            mask[0:i + nsta] = 1
+        if init_th < sum(shortwin) / sum(longwin):
+            if state == 0:
+                startpt = i + nlta
+                state = 1
+            if state == 1:
+                continue
+
+        else:
+            if state == 0:
+                continue
+            if state == 1:
+                if sum(shortwin) / sum(longwin) > stop_th:
+                    continue
+                else:
+                    stoppt = i + nlta + int(nsta / 2)
+                    state = 0
+                    # vec2[startpt:stoppt] = vec[startpt:stoppt]
+                    mask[startpt:stoppt] = 1
+
+    return mask
 
 def convert_to_bytes(file_or_bytes, resize=None):
     """
