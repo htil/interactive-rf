@@ -46,6 +46,7 @@
 
 client.on("speed", (args) => {
   power = Math.round(args.data * 300 * (1 + Math.random()) * 10) / 10;
+  power_flag = true;
   // power = args.data * 300;
   console.log("power: ", power);
 });
@@ -81,6 +82,7 @@ client.on("speed", (args) => {
     var game = new Phaser.Game(config);
     var power;
     var test;
+    var power_flag = false;
     var reset = false;
     var event = false;
     var angle_key = false;
@@ -148,13 +150,13 @@ client.on("speed", (args) => {
             client.send("request_speed");
             // while (true) {
             //     console.log(power)
-            //     if (power !== 0) {
+            //     if (power_flag) {
             //         break;
             //     }
             // }
-
             await sleep(0.05 * 1000);  // a small delay to read the radar speed
             console.log("speed:", power)
+            power_flag = false;
             paper.setGravity(wind, 0);
             this.physics.velocityFromAngle(arrow.angle - 90, power, paper.body.velocity)
             // this.physics.velocityFromAngle(arrow.angle - 90, power, paper.body.velocity);
