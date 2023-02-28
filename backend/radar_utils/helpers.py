@@ -19,14 +19,14 @@ def envelope_finder(spect_file, plot=False):
 
     im = PIL.Image.open(spect_file)
     img = np.sum(np.asarray(im)/255., -1)
-    print(np.max(img))
-    print(np.min(img))
+    # print(np.max(img))
+    # print(np.min(img))
 
     # print(img.flags)
     # img.setflags(write=1)
     img2 = img.copy()
     # print(img.shape)
-    img2[img2 < 1.5] = 0
+    img2[img2 < np.min(img2) * 1.1] = 0
     img = img2
     total_pow = np.sum(img, axis=0)
     up_lim = total_pow * 0.97
@@ -77,27 +77,28 @@ def envelope_finder(spect_file, plot=False):
         plt.title('Envelope Detection')
         plt.show()
 
-    max_peak_ratio = (img.shape[0] - np.min(up_env)) / img.shape[0]
+    max_peak_ratio = (img.shape[0] / 2 - np.min(up_env)) / (img.shape[0] / 2)
     doppler_frequency = prf * max_peak_ratio
     max_velocity = round(doppler_frequency * lamda / 2, 2)
 
     return up_env, cent_env, low_env, max_velocity
 
 
-def sta_lta2(vec, nlta, nsta, init_th, stop_th, stepsz, duration, plot=False):
+def sta_lta(vec, nlta, nsta, init_th, stop_th, stepsz, duration, plot=False):
     """
     :param vec: Euclidean distance between upper and lower envelopes
-    :param nlta: length of the long-time (lagging) window (in sec)
-    :param nsta: length of the short-time (leading) window (in sec)
+    :param nlta: length of the long-time (lagging) window (in columns)
+    :param nsta: length of the short-time (leading) window (in columns)
     :param init_th: motion detection starting threshold
     :param stop_th: motion detection stopping threshold
-    :param stepsz: window shift size
+    :param stepsz: window shift size (in columns)
     :param duration: total duration (in sec)
     :param plot: plot vec overlayed with the detection mask
     :return mask: detection mask
     """
     # vec2 = np.zeros(vec.shape)
     mask = np.zeros(vec.shape)
+    timevec = np.linspace(0, duration, len(vec))
     state = 0  # '0' nothing, '1' signing
 
     for i in range(0, len(vec), stepsz):
@@ -134,7 +135,21 @@ def sta_lta2(vec, nlta, nsta, init_th, stop_th, stepsz, duration, plot=False):
                     # vec2[startpt:stoppt] = vec[startpt:stoppt]
                     mask[startpt:stoppt] = 1
 
+    if plot:
+        fontsize = 10
+        plt.plot(timevec, vec / max(vec), color='black')
+        plt.plot(timevec, mask, linewidth=3, color='red')
+        plt.legend(['Euclidean Distance', 'STA/LTA Detector'], loc='upper right', fontsize='x-large')
+        # fig = plt.gcf()
+        # fig.set_size_inches(12,6)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        plt.xlabel('Time (sec)', fontsize=fontsize, fontname='serif')
+        plt.ylabel('Normalized Euclidean Distance', fontsize=fontsize)
+        plt.show()
+
     return mask
+
 
 def convert_to_bytes(file_or_bytes, resize=None):
     """
