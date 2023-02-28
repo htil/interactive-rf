@@ -1,0 +1,301 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Paper Toss</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <script src="https://cdn.socket.io/4.1.2/socket.io.min.js"></script>
+    <script src="ioclient.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Begin Socket Code -->
+<script type="text/javascript">
+
+    var power;
+    // window.trigger = ""
+    // power = 0
+
+    const pred = "";
+    console.log("STARTING IO CLIENT");
+    const client = new IOClient("http://localhost:5000");
+
+    // window.trigger
+    client.send("initialize");
+
+    client.on("connect", () => {
+      console.log("Connected to Server");
+      client.send("stream", "hi");
+});
+
+// client.on("data", (...args) => {
+//   console.log(args[0].data);
+//   window.trigger = args[0].data;
+//   /// Call a phaser action here (example)
+//   //document.getElementById("chart").innerHTML = args[0].data;
+// });
+//
+// client.on("prediction", (args) => {
+//   console.log("PRED: ", args);
+// });
+
+client.on("speed", (args) => {
+  power = Math.round(args.data * 300 * (1 + Math.random()) * 10) / 10;
+  // power = args.data * 300;
+  console.log("power: ", power);
+});
+
+</script>
+    <!-- End Socket Code -->
+
+<script type="text/javascript">
+
+    var config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { x: 0 },
+                debug: false
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    }
+
+    var paper;
+    var star;
+    var platforms;
+    var cursors;
+    var wind = Phaser.Math.Between(-600, 600);
+    var game = new Phaser.Game(config);
+    var power;
+    var test;
+    var reset = false;
+    var event = false;
+    var angle_key = false;
+    var power_key = false;
+    // var delay = true;
+    var y = 1;
+    var x = 1;
+
+    function preload ()
+    {
+        this.load.image('sky', 'assets/sky.png');
+        this.load.image('office', 'assets/office_bg3.png');
+        this.load.image('ground', 'assets/platform.png');
+        this.load.image('trash', 'assets/trash_can.png');
+        this.load.image('paper', 'assets/paper_waste.png');
+        this.load.image('arrow', 'assets/arrow.png');
+        this.load.image('fan', 'assets/fan_crop.png');
+        
+    }
+
+    function create ()
+    {
+        this.add.image(400, 300, 'sky');
+        // this.add.image(400, 220, 'office').setScale(4.7);
+
+        // platforms = this.physics.add.staticGroup();
+        // platforms.create(400, 568, 'ground');
+
+        paper = this.physics.add.sprite(400, 515, 'paper');
+        paper.setScale(0.5);
+        paper.setCollideWorldBounds(true);
+        
+        trash = this.physics.add.sprite(400, 200, 'trash');
+        trash.setScale(1.2);
+
+        arrow = this.physics.add.sprite(400, 535, 'arrow').setOrigin(0.5, 1.5);
+        arrow.setScale(.25);
+        arrow.flipY = true;
+
+        fan = this.physics.add.sprite(1000, 500, 'fan').setScale(.7);
+
+        cursors = this.input.keyboard.createCursorKeys();
+        
+        this.physics.add.overlap(trash, paper, collectPaper, null, this);
+        
+        wind = Phaser.Math.Between(-600, 600);
+        test = Phaser.Math.FloatBetween(-2, 2);
+        // power = Phaser.Math.Between(200, 400);
+        power = 0;
+        text = this.add.text(10, 10, '', { font: '16px Courier', fill: '#ffffff' });
+    }
+
+    async function update() {
+
+
+        text.setText([
+            'wind: ' + Math.abs(Math.round(wind / 20)) + ' m/s',
+            'angle: ' + Math.round(arrow.angle) + String.fromCharCode(176),
+            'speed: ' + Math.round(power / 20 * 10) / 10 + ' m/s',
+        ]);
+
+
+        if (cursors.space.isDown && event == false && angle_key == true && power_key == true) {
+            console.log("fire")
+            client.send("request_speed");
+            // while (true) {
+            //     console.log(power)
+            //     if (power !== 0) {
+            //         break;
+            //     }
+            // }
+
+            await sleep(0.05 * 1000);  // a small delay to read the radar speed
+            console.log("speed:", power)
+            paper.setGravity(wind, 0);
+            this.physics.velocityFromAngle(arrow.angle - 90, power, paper.body.velocity)
+            // this.physics.velocityFromAngle(arrow.angle - 90, power, paper.body.velocity);
+            arrow.setX(1000);
+            event = true;
+        }
+
+        if (angle_key == false && power_key == false) {
+            if (cursors.right.isDown && arrow.angle < 75 && arrow.angle > -75 && angle_key == false) {
+                arrow.angle += 1;
+            }
+
+            if (cursors.left.isDown && arrow.angle < 75 && arrow.angle > -75 && angle_key == false) {
+                arrow.angle += -1;
+            }
+
+            if (arrow.angle >= 75 || arrow.angle <= -75) {
+                if (arrow.angle >= 75) {
+                    arrow.angle = 74;
+                }
+
+                if (arrow.angle <= -75) {
+                    arrow.angle = -74;
+                }
+            }
+
+            if (cursors.space.isDown) {
+                angle_key = true;
+                console.log("aim lock");
+            }
+        }
+
+        if (angle_key == true && power_key == false) {
+            // if(cursors.right.isDown)
+            // {
+            //
+            //     power += 5;
+            //
+            //     x -= 0.001;
+            //     y += 0.001;
+            //
+            //
+            //     delay = false;
+            // }
+
+            // if(cursors.left.isDown)
+            // {
+            //     power -= 5;
+            //
+            //     x += 0.001;
+            //     y -= 0.001;
+            //
+            //
+            //     delay = false;
+            // }
+
+            // if(power <= 500 || power >= 100)
+            // {
+            //     if(power >= 500)
+            //     {
+            //         power = 500;
+            //     }
+            //     if(power <= 100)
+            //     {
+            //         power = 100;
+            //     }
+            // }
+
+            // if(cursors.space.isDown && delay == false)
+            if (cursors.space.isDown) {
+                power_key = true;
+                console.log("power lock");
+            }
+        }
+
+
+        if (paper.body.checkWorldBounds()) {
+            ///paper.disableBody(true, true);
+            console.log("reset");
+            paper.setPosition(400, 525);
+            paper.setVelocityX(0);
+            paper.setVelocityY(0);
+            paper.setGravity(0, 0);
+
+            event = false;
+            // delay = true;
+            angle_key = false;
+            power_key = false;
+            reset = false;
+            wind = Phaser.Math.Between(-600, 600);
+            test = Phaser.Math.FloatBetween(-2, 2);
+            arrow.setX(400);
+            arrow.angle = 0;
+            // power = 300;
+
+        }
+
+        if (wind > 0) {
+            fan.setX(50);
+            fan.angle = -45;
+            fan.flipX = false;
+        }
+
+        if (wind < 0) {
+            fan.setX(750);
+            fan.flipX = true;
+            fan.angle = 45;
+        } else {
+            arrow.angle += 0;
+        }
+
+    }
+
+    function collectPaper (trash, paper)
+    {
+        console.log("reset");
+        paper.setPosition(400, 525);
+        paper.setVelocityX(0);
+        paper.setVelocityY(0);
+        paper.setGravity(0,0);
+
+        event = false;
+        // delay = true;
+        angle_key = false;
+        power_key = false;
+        reset = false;
+        wind = Phaser.Math.Between(-600, 600);
+        test = Phaser.Math.FloatBetween(-2, 2);
+        arrow.setX(400);
+        arrow.angle = 0;
+        // power = 300;
+
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+ 
+
+</script>
+
+</body>
+</html>
