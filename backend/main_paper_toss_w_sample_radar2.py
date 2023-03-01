@@ -54,7 +54,7 @@ def generate_continuous_pred():
             # Program throws error sometime if sleep duration is not long enough
             socketServer.send('recording', "false")
             print('some error: ', e)
-            radar_mng.hard_stop()
+            radar_mng.reset()
 
 
 def fire_with_radar():

@@ -80,7 +80,7 @@ class RadarManager:
     def radar_init(self):
         # reset and kill existing recording process, if any
         # pid = subprocess.check_output(['pgrep gnome-terminal'], shell=True)
-        self.hard_stop()
+        self.reset()
 
         # radar init command with sudo privileges
         pwd = subprocess.Popen(['echo', self.sudo_password], cwd=self.radar_path, stdout=subprocess.PIPE)
@@ -104,7 +104,7 @@ class RadarManager:
         else:
             raise Exception('Radar setup error!')
 
-    def hard_stop(self):
+    def reset(self):
         print('Resetting radar...')
         os.system("gnome-terminal 'ls'")  # opens a new terminal
         cmd = self.execute('kill')
@@ -135,22 +135,22 @@ class RadarManager:
         # Just follows outline from main_game_record.py
         cmd = self.execute('start_record')
         # print(cmd.pid)
-        time.sleep(0.4)
+        time.sleep(0.5)
         # cmd2 = self.execute('xdotool windowminimize $(xdotool getactivewindow)')
         # cmd2 = self.execute('xdotool windowminimize `xdotool search --pid ' + str(cmd.pid) + '`')
         # cmd2 = self.execute('xdotool search "Google Chrome" windowminimize')
         # cmd2 = self.execute('xdotool search --pid ' + str(cmd.pid.__str__()) + ' windowminimize')
         cmd2 = subprocess.Popen('xdotool windowminimize $(xdotool getactivewindow)', cwd=self.cwd, shell=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # minimize recording window
-        cmd2.wait()
+        # cmd2.wait()
         # print('minimizeerror return code: ', cmd2.stderr.read())
         cmd.wait()
         print('start_record error return code: ', cmd.returncode)
         time.sleep(duration + 0.1)
+        cmd = self.execute('stop_record')
         cmd = self.execute('kill')
         cmd.wait()
         print('kill error return code: ', cmd.returncode)
-        cmd = self.execute('stop_record')
         # cmd.wait()
         # print('stop_record error return code: ', cmd.returncode)
 
